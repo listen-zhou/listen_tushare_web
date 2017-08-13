@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>值得买</title>
+	<link rel="stylesheet" type="text/css" href="{{ static_url('easyui/themes/default/easyui.css') }}">
+	<link rel="stylesheet" type="text/css" href="{{ static_url('easyui/themes/icon.css') }}">
+    <style>
+        html {
+          height: 100%;
+          display: body;
+        }
+
+        body {
+          display: div;
+          height: 97%;
+        }
+    </style>
+	<script type="text/javascript" src="{{ static_url('easyui/js/jquery.min.js') }}"></script>
+	<script type="text/javascript" src="{{ static_url('easyui/js/jquery.easyui.min.js') }}"></script>
+	<script type="text/javascript" src="{{ static_url('js/inflection.point.js') }}"></script>
+
+	<script type="text/javascript">
+		var security_name = '';
+		$(function(){
+			interval_codes_reload = window.setInterval("inflection_point_grid_query()", 4*60*1000);
+			inflection_point_grid_query();
+			$.fn.datebox.defaults.formatter = function(date){
+                var y = date.getFullYear();
+                var m = date.getMonth()+1;
+                var d = date.getDate();
+                return y +'-' + m + '-' + d;
+            }
+            var date = new Date();
+            $('#start_date').datebox('setValue', (date.getFullYear() - 1) + '-' + (date.getMonth() + 1) + '-' + date.getDate());
+            $('#end_date').datebox('setValue', (date.getFullYear()) + '-' + (date.getMonth() + 1) + '-' + date.getDate());
+		});
+		function stop_interval(){
+		    console.log('手动停止定时器');
+            window.clearInterval(interval_codes_reload);
+		}
+
+	</script>
+</head>
+<body>
+	<div class="easyui-tabs" style="width: 100%; height: 100%; align: center">
+		<div title="分析拐点" id="inflection_point" style="width: 100%; height: 100%;">
+			<div class="easyui-layout" style="width: 98%; height: 100%;">
+				<div id="inflection_stock_codes" data-options="region: 'east', split: true" title="East" style="width: 13%; height: 100%;">
+					<table class="easyui-datagrid" title="筛选股票" style="width: 90%; height: 100%;"
+							data-options="remoteSort:false, rownumbers:true, singleSelect:true,
+							url:'/inflection_point_get', method:'get'">
+						<thead>
+							<tr>
+								<th data-options="field:'security_code', align:'center', formatter:formatToButton">股票代码</th>
+								<th data-options="field:'security_name', align:'center'">股票名称</th>
+							</tr>
+						</thead>
+					</table>
+				</div>
+				<div id="inflection_point_data" data-options="region: 'center', split: true" title="Center" style="width: 83%; height: 100%;">
+					<div id="inflection_tools">
+						<a href="javascript:void(0)" class="easyui-linkbutton" onclick="change_bgcolor('buy')" style="background-color: red; color: gold;"><strong style="background-color: red; color: gold;">买入标记</strong></a>
+						<a href="javascript:void(0)" class="easyui-linkbutton" onclick="change_bgcolor('sell')" style="background-color: green; color: gold;"><strong style="background-color: green; color: gold;">卖出标记</strong></a>
+						<a href="javascript:void(0)" class="easyui-linkbutton" onclick="change_bgcolor('cancel')" style="background-color: #FFEC8B;"><strong style="background-color: #FFEC8B;">标记消除</strong></a>
+						<a href="javascript:void(0)" class="easyui-linkbutton" onclick="delete_rows()" style="background-color: red; color: gold;"><strong style="background-color: red; color: gold;">删除行</strong></a>
+						<a href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-search" onclick="inflection_changesize(50)"><strong style="background-color: Blue; color: gold;">近250日</strong></a>
+						<a href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-search" onclick="inflection_changesize(100)"><strong style="background-color: Violet; color: gold;">近300日</strong></a>
+						<a href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-search" onclick="inflection_changesize(150)"><strong style="background-color: Blue; color: gold;">近350日</strong></a>
+						<a href="javascript:void(0)" class="easyui-linkbutton" iconCls="icon-search" onclick="inflection_changesize(200)"><strong style="background-color: Violet; color: gold;">近400日</strong></a>
+                        <a href="javascript:void(0)" class="easyui-linkbutton" onclick="stop_interval()" style="background-color: red; color: gold;"><strong style="background-color: red; color: gold;">停止定时器</strong></a>
+                        <label id="show_stock_info" style="width: 20px; color: red; font-weight: bold;"></label>
+                        <label id="interval_time" style="width: 20px; color: blue; font-weight: bold;"></label>
+					</div>
+					<input type="hidden" id="inflection_security_code">
+					<input type="hidden" id="inflection_size" value="50">
+                    <!-- 历史行情数据表格 -->
+					<table id="inflection_point_grid" class="easyui-datagrid" title="分析拐点" style="width: 98.5%; height: 100%;"
+							data-options="remoteSort:false, rownumbers:true, singleSelect:false,
+							url:'/inflection_point_post', method:'post', toolbar:'#inflection_tools'">
+                        <thead data-options="frozen:true">
+                            <tr>
+                                <th data-options="field:'ck'" checkbox="true"></th>
+                                <th data-options="field:'the_date'">交易日</th>
+                            </tr>
+                        </thead>
+                        <thead>
+                            <tr>
+
+								<th data-options="field:'open', align:'center'">开</th>
+								<th data-options="field:'high', align:'center'">高</th>
+                                <th data-options="field:'high_change', align:'center', styler:cellStyler"><b style="color: red; background-color: gold;">高变值</b></th>
+								<th data-options="field:'high_change_percent', align:'center', styler:cellCloseOpenStyler, formatter:formatPercent">高幅</th>
+                                <th data-options="field:'high_change_diff', align:'center', formatter:formatImg">连续</th>
+
+								<th data-options="field:'low', align:'center'">低</th>
+                                <th data-options="field:'low_change', align:'center', styler:cellStyler"><b style="color: red; background-color: gold;">低变值</b></th>
+								<th data-options="field:'low_change_percent', align:'center', styler:cellCloseOpenStyler, formatter:formatPercent">低幅</th>
+                                <th data-options="field:'low_change_diff', align:'center', formatter:formatImg">连续</th>
+
+                                <th data-options="field:'close', align:'center', styler:cellCloseStyler">收</th>
+                                <th data-options="field:'close_change', align:'center', styler:cellStyler"><b style="color: red; background-color: blue;">收变值</b></th>
+								<th data-options="field:'close_change_percent', align:'center', styler:cellCloseOpenStyler, formatter:formatPercent">收幅</th>
+                                <th data-options="field:'close_change_diff', align:'center', formatter:formatImg">连续</th>
+
+								<th data-options="field:'volume', align:'center'">量(股)</th>
+								<th data-options="field:'volume_change', align:'center'"><b style="color: red; background-color: gold;">量变值</b></th>
+                                <th data-options="field:'volume_change_percent', align:'center', styler:cellVolStyler, formatter:formatPercent"><b style="color: red; background-color: gold;">量幅</b></th>
+                                <th data-options="field:'volume_change_diff', align:'center', formatter:formatImg">连续</th>
+
+								<th data-options="field:'amount', align:'center'">额(元)</th>
+								<th data-options="field:'amount_change', align:'center'"><b style="color: red; background-color: gold;">额变值</b></th>
+                                <th data-options="field:'amount_change_percent', align:'center', styler:cellVolStyler, formatter:formatPercent"><b style="color: red; background-color: gold;">额幅</b></th>
+                                <th data-options="field:'amount_change_diff', align:'center', formatter:formatImg">连续</th>
+
+								<th data-options="field:'price_average_1', align:'center', styler:cellDayAvgPriceStyler">1均</th>
+								<th data-options="field:'price_average_change_1', align:'center', styler:cellDayAvgStyler"><b style="color: red; background-color: gold;">1均变值</b></th>
+                                <th data-options="field:'price_average_change_percent_1', align:'center', styler:cellStyler, formatter:formatPercent">1均幅</th>
+                                <th data-options="field:'price_average_change_diff_1', align:'center', formatter:formatImg">连续</th>
+
+								<th data-options="field:'price_average_3', align:'center', styler:cellDayAvgPriceStyler">3均</th>
+								<th data-options="field:'price_average_change_3', align:'center', styler:cellDayAvgStyler"><b style="color: red; background-color: gold;">3均变值</b></th>
+                                <th data-options="field:'price_average_change_percent_3', align:'center', styler:cellStyler, formatter:formatPercent">3均幅</th>
+                                <th data-options="field:'price_average_change_diff_3', align:'center', formatter:formatImg">连续</th>
+
+                                <th data-options="field:'price_average_5', align:'center', styler:cellDayAvgPriceStyler">5均</th>
+								<th data-options="field:'price_average_change_5', align:'center', styler:cellDayAvgStyler"><b style="color: red; background-color: gold;">5均变值</b></th>
+                                <th data-options="field:'price_average_change_percent_5', align:'center', styler:cellStyler, formatter:formatPercent">5均幅</th>
+                                <th data-options="field:'price_average_change_diff_5', align:'center', formatter:formatImg">连续</th>
+
+                                <th data-options="field:'price_average_10', align:'center', styler:cellDayAvgPriceStyler">10均</th>
+								<th data-options="field:'price_average_change_10', align:'center', styler:cellDayAvgStyler"><b style="color: red; background-color: gold;">10均变值</b></th>
+                                <th data-options="field:'price_average_change_percent_10', align:'center', styler:cellStyler, formatter:formatPercent">10均幅</th>
+                                <th data-options="field:'price_average_change_diff_10', align:'center', formatter:formatImg">连续</th>
+
+                                <th data-options="field:'week_day', align:'center'">周几</th>
+							</tr>
+						</thead>
+					</table>
+				</div>
+			</div>
+		</div>
+	</div>
+</body>
+</html>
